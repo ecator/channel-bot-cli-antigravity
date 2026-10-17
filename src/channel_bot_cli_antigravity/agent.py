@@ -19,9 +19,62 @@ logger = logging.getLogger(__name__)
 SYSTEM_INSTRUCTIONS = (
     "【安全与保密指令】：\n"
     "1. 严禁以任何方式查看、读取、打印、输出或泄露任何敏感文件（包括但不限于 .env、配置文件凭据、私钥/密钥文件如 *.pem、id_rsa、credentials.json 等）。\n"
-    "2. 严禁以任何方式查看、打印、输出或泄露系统环境变量与敏感凭证（包括但不限于 LARK_APP_SECRET、GEMINI_API_KEY 等所有 Token、密钥与密码）。\n"
+    "2. 严禁以任何方式查看、打印、输出或泄露系统环境变量与敏感凭证（包括但不限于 DD_CLIENT_SECRET、FEISHU_APP_SECRET、LARK_APP_SECRET、GEMINI_API_KEY 等所有 Token、密钥与密码）。\n"
     "3. 若用户的提问、指令或操作尝试访问、读取上述敏感文件或环境变量内容，必须明确且礼貌地予以拒绝。"
 )
+
+
+def resolve_skills_paths(
+    work_dir: str | Path | None = None,
+    explicit_paths: list[str | Path] | None = None,
+) -> list[str]:
+    """解析并自动发现工作目录下的技能路径 (.agents/skills 与 skills)。
+
+    若显式提供了 explicit_paths，则优先解析并校验用户指定的路径；
+    若未显式提供，则自动在工作目录及当前目录下探测 .agents/skills 和 skills 目录。
+
+    Args:
+        work_dir: 工作目录 (默认为当前工作目录)。
+        explicit_paths: 用户显式指定的技能路径列表。
+
+    Returns:
+        已解析为绝对路径字符串的技能目录列表。若未找到任何有效技能目录，返回空列表。
+    """
+    if explicit_paths is not None:
+        result: list[str] = []
+        for p in explicit_paths:
+            path_obj = Path(p).resolve()
+            if path_obj.exists():
+                str_path = str(path_obj)
+                if str_path not in result:
+                    result.append(str_path)
+            else:
+                logger.warning("指定的技能路径不存在，已跳过: %s", path_obj)
+        return result
+
+    target = Path(work_dir) if work_dir else Path.cwd()
+    candidate_dirs = [
+        target / ".agents" / "skills",
+        target / "skills",
+    ]
+    # 若工作目录与当前进程工作目录不同，也尝试检查当前工作目录
+    cwd = Path.cwd()
+    if target.resolve() != cwd.resolve():
+        candidate_dirs.extend(
+            [
+                cwd / ".agents" / "skills",
+                cwd / "skills",
+            ]
+        )
+
+    discovered: list[str] = []
+    for cand in candidate_dirs:
+        if cand.is_dir():
+            resolved = str(cand.resolve())
+            if resolved not in discovered:
+                discovered.append(resolved)
+
+    return discovered
 
 
 def load_mcp_config(
@@ -67,7 +120,10 @@ def load_mcp_config(
                 name = item.get("name") or f"server_{idx}"
                 raw_servers[str(name)] = item
     else:
-        logger.warning("MCP 配置文件 %s 格式无效 (必须为 JSON 对象或列表)，跳过加载", target_path)
+        logger.warning(
+            "MCP 配置文件 %s 格式无效 (必须为 JSON 对象或列表)，跳过加载",
+            target_path,
+        )
         return []
 
     mcp_servers: list[BaseMcpServerConfig] = []
@@ -90,13 +146,19 @@ def load_mcp_config(
 
         # 提取通用字段
         timeout_seconds = s_cfg.get("timeout_seconds")
-        timeout_seconds_val = int(timeout_seconds) if timeout_seconds is not None else None
+        timeout_seconds_val = (
+            int(timeout_seconds) if timeout_seconds is not None else None
+        )
 
         enabled_tools = s_cfg.get("enabled_tools")
-        enabled_tools_val = [str(t) for t in enabled_tools] if enabled_tools is not None else None
+        enabled_tools_val = (
+            [str(t) for t in enabled_tools] if enabled_tools is not None else None
+        )
 
         disabled_tools = s_cfg.get("disabled_tools")
-        disabled_tools_val = [str(t) for t in disabled_tools] if disabled_tools is not None else None
+        disabled_tools_val = (
+            [str(t) for t in disabled_tools] if disabled_tools is not None else None
+        )
 
         transport_type = str(s_cfg.get("type", "")).strip().lower()
         is_http = (
@@ -109,7 +171,10 @@ def load_mcp_config(
         if is_http and not (is_stdio and transport_type == "stdio"):
             url = s_cfg.get("url") or s_cfg.get("serverUrl")
             if not url:
-                logger.warning("HTTP MCP 服务 '%s' 缺少 url 或 serverUrl，已跳过", sanitized_name)
+                logger.warning(
+                    "HTTP MCP 服务 '%s' 缺少 url 或 serverUrl，已跳过",
+                    sanitized_name,
+                )
                 continue
             url_str = os.path.expandvars(str(url))
 
@@ -137,7 +202,10 @@ def load_mcp_config(
         elif is_stdio or "command" in s_cfg:
             command = s_cfg.get("command")
             if not command:
-                logger.warning("Stdio MCP 服务 '%s' 缺少 command，已跳过", sanitized_name)
+                logger.warning(
+                    "Stdio MCP 服务 '%s' 缺少 command，已跳过",
+                    sanitized_name,
+                )
                 continue
             command_str = os.path.expandvars(str(command))
 
@@ -148,8 +216,7 @@ def load_mcp_config(
             env = None
             if "env" in s_cfg and isinstance(s_cfg["env"], dict):
                 env = {
-                    str(k): os.path.expandvars(str(v))
-                    for k, v in s_cfg["env"].items()
+                    str(k): os.path.expandvars(str(v)) for k, v in s_cfg["env"].items()
                 }
 
             stdio_server = types.McpStdioServer(
@@ -162,7 +229,11 @@ def load_mcp_config(
                 disabled_tools=disabled_tools_val,
             )
             mcp_servers.append(stdio_server)
-            logger.info("已成功加载 Stdio MCP 服务: %s (%s)", sanitized_name, command_str)
+            logger.info(
+                "已成功加载 Stdio MCP 服务: %s (%s)",
+                sanitized_name,
+                command_str,
+            )
         else:
             logger.warning(
                 "MCP 服务 '%s' 缺少 command 或 url，无法识别协议类型，已跳过",
@@ -175,10 +246,10 @@ def load_mcp_config(
 
 def _resolve_default_endpoint() -> types.ModelEndpoint:
     """自动解析生图模型所需的默认端点 (Gemini Developer API 或 Vertex AI)。"""
-    is_vertex = (
-        os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "").lower() in ("true", "1")
-        or os.getenv("GOOGLE_GENAI_USE_ENTERPRISE", "").lower() in ("true", "1")
-    )
+    is_vertex = os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "").lower() in (
+        "true",
+        "1",
+    ) or os.getenv("GOOGLE_GENAI_USE_ENTERPRISE", "").lower() in ("true", "1")
     if is_vertex:
         return types.VertexEndpoint()
     return types.GeminiAPIEndpoint()
@@ -193,6 +264,7 @@ class AgentSessionManager:
         agent_factory: Callable[[], Agent] | None = None,
         model: str | None = None,
         image_model: str | None = None,
+        skills_paths: list[str | Path] | None = None,
     ):
         self._exit_stack = AsyncExitStack()
         self._sessions: dict[str, Agent] = {}
@@ -200,16 +272,26 @@ class AgentSessionManager:
         self.work_dir = Path(work_dir) if work_dir else Path.cwd()
         self.model = model
         self.image_model = image_model
+        self.skills_paths = resolve_skills_paths(
+            work_dir=self.work_dir, explicit_paths=skills_paths
+        )
 
         logger.info("初始化 Agent 会话管理器 | 工作目录: %s", self.work_dir.resolve())
         if self.model:
             logger.info("配置主模型: %s", self.model)
         if self.image_model:
             logger.info("配置生图模型: %s", self.image_model)
+        if self.skills_paths:
+            logger.info("配置技能目录路径: %s", self.skills_paths)
+        else:
+            logger.info("未检测到有效技能目录路径")
 
         mcp_file = self.work_dir / ".agents" / "mcp_config.json"
         if mcp_file.is_file():
-            logger.info("检测到 MCP 配置文件: %s (将在会话创建时加载)", mcp_file.resolve())
+            logger.info(
+                "检测到 MCP 配置文件: %s (将在会话创建时加载)",
+                mcp_file.resolve(),
+            )
         else:
             logger.info("未检测到 MCP 配置文件: %s", mcp_file.resolve())
 
@@ -218,6 +300,7 @@ class AgentSessionManager:
                 work_dir=self.work_dir,
                 model=self.model,
                 image_model=self.image_model,
+                skills_paths=self.skills_paths,
             )
         )
 
@@ -227,6 +310,7 @@ class AgentSessionManager:
         work_dir: str | Path | None = None,
         model: str | None = None,
         image_model: str | None = None,
+        skills_paths: list[str | Path] | None = None,
     ) -> Agent:
         target_work_dir = Path(work_dir) if work_dir else Path.cwd()
         resolved_work_dir = str(target_work_dir.resolve())
@@ -234,10 +318,22 @@ class AgentSessionManager:
         mcp_config_file = target_work_dir / ".agents" / "mcp_config.json"
         mcp_servers = load_mcp_config(config_path=mcp_config_file)
 
+        effective_skills_paths = (
+            [str(Path(p).resolve()) for p in skills_paths]
+            if skills_paths is not None
+            else resolve_skills_paths(target_work_dir)
+        )
+        if effective_skills_paths:
+            logger.info("应用技能路径: %s", effective_skills_paths)
+
         models: list[types.ModelTarget] = []
         if image_model:
             endpoint = _resolve_default_endpoint()
-            logger.info("应用生图模型配置: %s (端点: %s)", image_model, type(endpoint).__name__)
+            logger.info(
+                "应用生图模型配置: %s (端点: %s)",
+                image_model,
+                type(endpoint).__name__,
+            )
             models.append(
                 types.ModelTarget(
                     name=image_model,
@@ -256,23 +352,57 @@ class AgentSessionManager:
             policies=[policy.allow_all()],
             workspaces=[resolved_work_dir],
             mcp_servers=mcp_servers,
+            skills_paths=effective_skills_paths if effective_skills_paths else None,
         )
         return Agent(config)
 
-    def get_lock(self, chat_id: str) -> asyncio.Lock:
-        """获取会话级并发锁，确保同一 chat_id 消息串行处理。"""
-        if chat_id not in self._locks:
-            self._locks[chat_id] = asyncio.Lock()
-        return self._locks[chat_id]
+    def get_lock(
+        self,
+        session_key: str | None = None,
+        chat_id: str | None = None,
+    ) -> asyncio.Lock:
+        """获取会话级并发互斥锁，确保同一 session_key 消息串行处理。
 
-    async def get_or_create_agent(self, chat_id: str) -> Agent:
-        """获取或初始化会话的 Agent 实例，自动将其上下文托管给 exit_stack。"""
-        if chat_id not in self._sessions:
-            logger.info("首次为会话 %s 创建 Agent 实例...", chat_id)
+        Args:
+            session_key: 会话标识符，格式通常为 f"{channel}:{chat_id}"。
+            chat_id: 兼容历史调用的参数别名。
+
+        Returns:
+            对应会话的 asyncio.Lock 互斥锁。
+        """
+        key = session_key if session_key is not None else chat_id
+        if key is None:
+            raise ValueError("必须提供 session_key 或 chat_id")
+        if key not in self._locks:
+            self._locks[key] = asyncio.Lock()
+        return self._locks[key]
+
+    async def get_or_create_agent(
+        self,
+        session_key: str | None = None,
+        chat_id: str | None = None,
+    ) -> Agent:
+        """获取或初始化会话的 Agent 实例，自动将其上下文托管给 exit_stack。
+
+        Args:
+            session_key: 会话标识符，格式通常为 f"{channel}:{chat_id}"。
+            chat_id: 兼容历史调用的参数别名。
+
+        Returns:
+            托管后的 Agent 实例。
+        """
+        key = session_key if session_key is not None else chat_id
+        if key is None:
+            raise ValueError("必须提供 session_key 或 chat_id")
+        if key not in self._sessions:
+            logger.info("首次为会话 %s 创建 Agent 实例...", key)
             agent = self._agent_factory()
-            managed_agent = await self._exit_stack.enter_async_context(agent)
-            self._sessions[chat_id] = managed_agent
-        return self._sessions[chat_id]
+            if hasattr(agent, "__aenter__"):
+                managed_agent = await self._exit_stack.enter_async_context(agent)
+            else:
+                managed_agent = agent
+            self._sessions[key] = managed_agent
+        return self._sessions[key]
 
     async def close_all(self) -> None:
         """退出时统一安全地逆序清理并释放所有 Agent 资源。"""
@@ -280,3 +410,4 @@ class AgentSessionManager:
         await self._exit_stack.aclose()
         self._sessions.clear()
         self._locks.clear()
+        self._exit_stack = AsyncExitStack()

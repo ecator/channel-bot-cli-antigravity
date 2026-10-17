@@ -33,11 +33,42 @@ def setup_logging(level: str = "INFO") -> None:
 
 # 常见纯文本/代码文件扩展名
 TEXT_EXTENSIONS = {
-    ".txt", ".md", ".py", ".json", ".csv", ".xml", ".html", ".htm",
-    ".css", ".js", ".ts", ".jsx", ".tsx", ".yaml", ".yml", ".toml",
-    ".ini", ".cfg", ".conf", ".sh", ".bash", ".bat", ".ps1", ".sql",
-    ".env", ".c", ".cpp", ".cc", ".h", ".hpp", ".java", ".rs", ".go",
-    ".php", ".rb", ".log",
+    ".txt",
+    ".md",
+    ".py",
+    ".json",
+    ".csv",
+    ".xml",
+    ".html",
+    ".htm",
+    ".css",
+    ".js",
+    ".ts",
+    ".jsx",
+    ".tsx",
+    ".yaml",
+    ".yml",
+    ".toml",
+    ".ini",
+    ".cfg",
+    ".conf",
+    ".sh",
+    ".bash",
+    ".bat",
+    ".ps1",
+    ".sql",
+    ".env",
+    ".c",
+    ".cpp",
+    ".cc",
+    ".h",
+    ".hpp",
+    ".java",
+    ".rs",
+    ".go",
+    ".php",
+    ".rb",
+    ".log",
 }
 
 
@@ -110,8 +141,12 @@ def create_media_from_bytes(
     if data.startswith(b"\xff\xd8\xff"):
         return types.Image(data=data, mime_type="image/jpeg", description=file_name)
     if data.startswith(b"%PDF"):
-        return types.Document(data=data, mime_type="application/pdf", description=file_name)
+        return types.Document(
+            data=data, mime_type="application/pdf", description=file_name
+        )
 
     # 4. 无法直接解析的二进制文件，降级为文本提示
     desc = file_name or "未知文件名"
-    return f"[用户上传了附件文件: {desc}，大小: {len(data)} 字节，暂不支持该格式直接解析]"
+    return (
+        f"[用户上传了附件文件: {desc}，大小: {len(data)} 字节，暂不支持该格式直接解析]"
+    )
