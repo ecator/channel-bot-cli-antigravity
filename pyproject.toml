@@ -1,0 +1,46 @@
+[project]
+name = "channel-bot-cli-antigravity"
+dynamic = ["version"]
+description = "一个使用Antigravity SDK驱动的即时通讯平台AI助手机器人工具"
+readme = "README.md"
+authors = [{ name = "Martin", email = "qule520@126.com" }]
+requires-python = ">=3.14"
+dependencies = [
+    "dingtalk-channel-sdk",
+    "google-antigravity>=0.1.22",
+    "lark-channel-sdk>=1.4.0",
+    "lark-oapi>=1.7.3",
+    "python-dotenv>=1.2.3",
+    "pyyaml>=6.0.3",
+]
+
+
+[project.urls]
+Homepage = "https://github.com/ecator/channel-bot-cli-antigravity"
+Repository = "https://github.com/ecator/channel-bot-cli-antigravity"
+
+[project.scripts]
+channel-bot-cli-antigravity = "channel_bot_cli_antigravity.cli:main"
+
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+
+[dependency-groups]
+dev = ["pytest>=9.1.1", "pytest-asyncio>=1.4.0", "ruff>=0.16.6"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[tool.ruff]
+src = ["src", "tests"]
+exclude = [".agents", ".venv"]
+
+[tool.ruff.lint]
+ignore = ["BLE001", "ASYNC230", "G201"]
+
+[tool.uv.sources]
+dingtalk-channel-sdk = { git = "https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git" }
