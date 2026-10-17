@@ -205,6 +205,7 @@ class DingTalkBotChannel(BaseBotChannel):
                 stream_succeeded = False
 
                 # 6. AI 卡片打字机流式回显
+                streamer = None
                 try:
                     streamer = await reply.stream()
                     async for token in response:
@@ -217,6 +218,21 @@ class DingTalkBotChannel(BaseBotChannel):
                     logger.warning(
                         "AI 卡片流式输出异常 (%s)，降级为 Markdown/文本回复", stream_err
                     )
+                    # 终止卡片流式状态并回显错误，避免用户一直看到“回复中”
+                    if streamer is not None:
+                        partial_text = "".join(tokens)
+                        error_text = f"⚠️ 流式输出异常: {stream_err}"
+                        finish_text = (
+                            f"{partial_text}\n\n{error_text}"
+                            if partial_text
+                            else error_text
+                        )
+                        try:
+                            await streamer.finish(finish_text)
+                        except Exception as finish_err:
+                            logger.debug(
+                                "流式异常后终止卡片失败 (忽略): %s", finish_err
+                            )
 
                 # 7. 优雅降级补发
                 if not stream_succeeded:
