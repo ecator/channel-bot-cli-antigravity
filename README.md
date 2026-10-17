@@ -185,17 +185,25 @@ LOG_LEVEL=INFO
 
 ## 快速开始
 
+> [!NOTE]
+> **关于 `uvx` 运行时依赖说明**：
+> 由于目前钉钉官方尚未把 `dingtalk-channel-sdk` 发布到 PyPI，使用 `uvx` 免安装运行时需要通过 `--with` 指定其 Git 仓库依赖：
+> ```bash
+> uvx --with "dingtalk-channel-sdk@git+https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git" channel-bot-cli-antigravity
+> ```
+> *注：待钉钉官方正式将 `dingtalk-channel-sdk` 发布至 PyPI 后，即可移除 `--with` 部分，直接使用 `uvx channel-bot-cli-antigravity` 执行。*
+
 推荐直接使用 `uvx` 免安装运行（需安装 [uv](https://github.com/astral-sh/uv)）：
 
 ```bash
 # 查看帮助文档
-uvx channel-bot-cli-antigravity --help
+uvx --with "dingtalk-channel-sdk@git+https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git" channel-bot-cli-antigravity --help
 
 # 启动双通道并发监听
-uvx channel-bot-cli-antigravity listen --channel all
+uvx --with "dingtalk-channel-sdk@git+https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git" channel-bot-cli-antigravity listen --channel all
 
 # 命令行主动发送一条通知
-uvx channel-bot-cli-antigravity send --chat-id <目标会话ID> -m "Hello from channel-bot-cli-antigravity!"
+uvx --with "dingtalk-channel-sdk@git+https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git" channel-bot-cli-antigravity send --chat-id <目标会话ID> -m "Hello from channel-bot-cli-antigravity!"
 ```
 
 若在本地克隆代码开发：
@@ -215,6 +223,9 @@ uv run pytest
 
 ## CLI 命令行使用指南
 
+> [!TIP]
+> **命令执行说明**：当前所有 `uvx` 示例均使用 `uvx --with "dingtalk-channel-sdk@git+https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git" channel-bot-cli-antigravity` 执行。待钉钉官方正式将 `dingtalk-channel-sdk` 发布到 PyPI 后，即可简化为 `uvx channel-bot-cli-antigravity`。
+
 ### 全局参数（置于子命令之前）
 
 | 参数 | 缩写 | 必填 | 默认值 | 说明 |
@@ -229,9 +240,9 @@ uv run pytest
 启动常驻 WebSocket Stream 长连接网关，实时接收消息、下载内存多模态附件并调用 Antigravity Agent 进行多轮思考与流式卡片回复。
 
 ```bash
-uvx channel-bot-cli-antigravity listen [选项]
+uvx --with "dingtalk-channel-sdk@git+https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git" channel-bot-cli-antigravity listen [选项]
 # 或使用等价别名
-uvx channel-bot-cli-antigravity serve [选项]
+uvx --with "dingtalk-channel-sdk@git+https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git" channel-bot-cli-antigravity serve [选项]
 ```
 
 #### 选项说明
@@ -247,19 +258,19 @@ uvx channel-bot-cli-antigravity serve [选项]
 
 ```bash
 # 启动双通道并发常驻监听网关（生产推荐）
-uvx channel-bot-cli-antigravity listen --channel all
+uvx --with "dingtalk-channel-sdk@git+https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git" channel-bot-cli-antigravity listen --channel all
 
 # 单独启动飞书长连接监听
-uvx channel-bot-cli-antigravity listen --channel feishu
+uvx --with "dingtalk-channel-sdk@git+https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git" channel-bot-cli-antigravity listen --channel feishu
 
 # 单独启动钉钉长连接监听
-uvx channel-bot-cli-antigravity listen --channel dingtalk
+uvx --with "dingtalk-channel-sdk@git+https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git" channel-bot-cli-antigravity listen --channel dingtalk
 
 # 仅响应指定群聊或私聊（防止测试期间打扰其他群组）
-uvx channel-bot-cli-antigravity listen --channel feishu --chat-id oc_a1b2c3d4e5f6
+uvx --with "dingtalk-channel-sdk@git+https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git" channel-bot-cli-antigravity listen --channel feishu --chat-id oc_a1b2c3d4e5f6
 
 # 指定特定项目工作目录（加载该工作区的 .env、AGENTS.md 行为约束及技能）
-uvx channel-bot-cli-antigravity -w /path/to/my-agent-workspace listen --channel all
+uvx --with "dingtalk-channel-sdk@git+https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git" channel-bot-cli-antigravity -w /path/to/my-agent-workspace listen --channel all
 ```
 
 ---
@@ -269,7 +280,7 @@ uvx channel-bot-cli-antigravity -w /path/to/my-agent-workspace listen --channel 
 支持向指定的群聊或单聊会话主动推送富文本 Markdown、纯文本、本地多文件附件或通过管道输入构建输出与监控日志。
 
 ```bash
-uvx channel-bot-cli-antigravity send --chat-id <目标会话ID> [选项]
+uvx --with "dingtalk-channel-sdk@git+https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git" channel-bot-cli-antigravity send --chat-id <目标会话ID> [选项]
 ```
 
 #### 选项说明
@@ -291,7 +302,7 @@ uvx channel-bot-cli-antigravity send --chat-id <目标会话ID> [选项]
 
 ```bash
 # 向钉钉群发送构建完成报告
-uvx channel-bot-cli-antigravity send \
+uvx --with "dingtalk-channel-sdk@git+https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git" channel-bot-cli-antigravity send \
   --channel dingtalk \
   --chat-id cid_xxxxxxxxxxxx \
   -m "### 🚀 CI/CD 构建已完成
@@ -301,7 +312,7 @@ uvx channel-bot-cli-antigravity send \
 - **状态**: :white_check_mark: Success"
 
 # 向飞书群发送相同格式通知
-uvx channel-bot-cli-antigravity send \
+uvx --with "dingtalk-channel-sdk@git+https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git" channel-bot-cli-antigravity send \
   --channel feishu \
   --chat-id oc_xxxxxxxxxxxx \
   -m "### 📢 系统巡检通知\n所有微服务健康指标正常运行。"
@@ -312,7 +323,7 @@ uvx channel-bot-cli-antigravity send \
 当文本中包含特殊字符（如代码片段、带有 `_` 或 `*` 的日志文本）且不希望被解析为 Markdown 排版时：
 
 ```bash
-uvx channel-bot-cli-antigravity send \
+uvx --with "dingtalk-channel-sdk@git+https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git" channel-bot-cli-antigravity send \
   --chat-id oc_xxxxxxxxxxxx \
   -m "原始配置串: token_abc*123_[prod]" \
   --type text
@@ -324,19 +335,19 @@ uvx channel-bot-cli-antigravity send \
 
 ```bash
 # 1. 显式使用 --stdin / -s
-cat deploy_report.md | uvx channel-bot-cli-antigravity send -c oc_xxxxxxxxxxxx --stdin
+cat deploy_report.md | uvx --with "dingtalk-channel-sdk@git+https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git" channel-bot-cli-antigravity send -c oc_xxxxxxxxxxxx --stdin
 
 # 2. 将 Git Diff 直接推送到指定钉钉群
-git diff HEAD~1 | uvx channel-bot-cli-antigravity send --channel dingtalk -c cid_xxxxxxxxxxxx -s
+git diff HEAD~1 | uvx --with "dingtalk-channel-sdk@git+https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git" channel-bot-cli-antigravity send --channel dingtalk -c cid_xxxxxxxxxxxx -s
 
 # 3. 使用 -m - 语法
-python generate_summary.py | uvx channel-bot-cli-antigravity send -c oc_xxxxxxxxxxxx -m -
+python generate_summary.py | uvx --with "dingtalk-channel-sdk@git+https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git" channel-bot-cli-antigravity send -c oc_xxxxxxxxxxxx -m -
 
 # 4. 自动管道识别（未提供 -m 与 -f 时，自动从管道读取）
-docker logs web-backend --tail 80 | uvx channel-bot-cli-antigravity send -c oc_xxxxxxxxxxxx
+docker logs web-backend --tail 80 | uvx --with "dingtalk-channel-sdk@git+https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git" channel-bot-cli-antigravity send -c oc_xxxxxxxxxxxx
 
 # 5. 交互式多行输入（按 Ctrl+Z 回车 [Windows] 或 Ctrl+D [Linux/macOS] 提交）
-uvx channel-bot-cli-antigravity send -c oc_xxxxxxxxxxxx --stdin
+uvx --with "dingtalk-channel-sdk@git+https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git" channel-bot-cli-antigravity send -c oc_xxxxxxxxxxxx --stdin
 ```
 
 ##### 场景 D：发送本地文件与图片 (`--file` / `-f`)
@@ -347,10 +358,10 @@ uvx channel-bot-cli-antigravity send -c oc_xxxxxxxxxxxx --stdin
 
 ```bash
 # 发送单张图片
-uvx channel-bot-cli-antigravity send -c oc_xxxxxxxxxxxx -f ./docs/architecture.png
+uvx --with "dingtalk-channel-sdk@git+https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git" channel-bot-cli-antigravity send -c oc_xxxxxxxxxxxx -f ./docs/architecture.png
 
 # 同时发送多个文件与图表
-uvx channel-bot-cli-antigravity send \
+uvx --with "dingtalk-channel-sdk@git+https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git" channel-bot-cli-antigravity send \
   -c cid_xxxxxxxxxxxx \
   -f ./release.zip ./summary.pdf ./metrics.png \
   -m "附件为本期发布包与指标分析报告，请查阅。"
@@ -362,11 +373,11 @@ uvx channel-bot-cli-antigravity send \
 
 ```bash
 # 查看标准版本信息
-uvx channel-bot-cli-antigravity version
+uvx --with "dingtalk-channel-sdk@git+https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git" channel-bot-cli-antigravity version
 # 输出示例: channel-bot-cli-antigravity 0.1.dev0+d20261017
 
 # 仅输出版本号 (适合脚本解析)
-uvx channel-bot-cli-antigravity version --short
+uvx --with "dingtalk-channel-sdk@git+https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git" channel-bot-cli-antigravity version --short
 # 输出示例: 0.1.dev0+d20261017
 ```
 
@@ -377,8 +388,8 @@ uvx channel-bot-cli-antigravity version --short
 `--work-dir` / `-w` 参数允许你在任何目录下执行命令时，指定特定的 Agent 业务工作空间：
 
 ```bash
-uvx channel-bot-cli-antigravity --work-dir /path/to/my-agent-workspace listen --channel all
-uvx channel-bot-cli-antigravity -w /path/to/my-agent-workspace send -c oc_xxx -m "同步消息"
+uvx --with "dingtalk-channel-sdk@git+https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git" channel-bot-cli-antigravity --work-dir /path/to/my-agent-workspace listen --channel all
+uvx --with "dingtalk-channel-sdk@git+https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git" channel-bot-cli-antigravity -w /path/to/my-agent-workspace send -c oc_xxx -m "同步消息"
 ```
 
 ### 工作目录资源加载规范
