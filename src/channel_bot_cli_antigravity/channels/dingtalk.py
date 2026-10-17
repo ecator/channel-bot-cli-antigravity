@@ -18,6 +18,7 @@ from dingtalk_channel_sdk import (
     Reply,
     SendTarget,
 )
+from dingtalk_channel_sdk.httpx import http_json
 
 from ..agent import AgentSessionManager
 from ..config import Config
@@ -36,6 +37,39 @@ def _first_line_title(text: str) -> str:
         if t:
             return t[:20]
     return "通知"
+
+
+def _extract_message_text(msg: Any) -> str:
+    """提取入站消息文本，兼容钉钉 richText 文本段缺失 ``type`` 字段的情况。
+
+    钉钉图文混排消息的文本段通常为 ``{"text": "..."}``（无 ``type``），
+    SDK 的 richText 转换器仅识别 ``type == "text"``，会导致文字丢失。
+    """
+    text = (getattr(msg, "text", None) or "").strip()
+    if text or getattr(msg, "msg_type", "") != "richText":
+        return text
+
+    content = getattr(msg, "content", None)
+    items = content.get("richText") if isinstance(content, dict) else None
+    if not isinstance(items, list):
+        return ""
+
+    parts: list[str] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        if item.get("type") in (None, "", "text"):
+            seg = item.get("text")
+            if isinstance(seg, str):
+                parts.append(seg)
+    text = "".join(parts).strip()
+
+    # 与 SDK 保持一致：群聊去除前置 @机器人 前缀
+    if getattr(msg, "conversation_type", "") == "group" and text.startswith("@"):
+        i = text.find(" ")
+        if i >= 0:
+            text = text[i + 1 :].strip()
+    return text
 
 
 class DingTalkBotChannel(BaseBotChannel):
@@ -85,6 +119,34 @@ class DingTalkBotChannel(BaseBotChannel):
                 client_secret=client_secret,
             )
 
+    async def _resolve_download_url(
+        self, reply: Reply, download_code: str, msg_id: str
+    ) -> str:
+        """换取附件下载地址。
+
+        SDK 内置的 ``Reply.download_url`` 未携带 ``Content-Type: application/json``，
+        urllib 默认以 form-urlencoded 发送，导致钉钉返回 ``400 Missingbody``。
+        此处显式指定 JSON 头调用同一接口；若依赖属性缺失则回退到 SDK 实现。
+        """
+        tokens = getattr(reply, "tokens", None) or getattr(
+            self.channel, "tokens", None
+        )
+        cfg = getattr(reply, "cfg", None) or getattr(self.channel, "cfg", None)
+        if tokens is None or cfg is None:
+            return await reply.download_url(download_code, msg_id)
+
+        token = await tokens.get()
+        out = await http_json(
+            "POST",
+            f"{cfg.api_base}/v1.0/robot/messageFiles/download",
+            {
+                "Content-Type": "application/json",
+                "x-acs-dingtalk-access-token": token,
+            },
+            {"downloadCode": download_code, "robotCode": cfg.client_id},
+        )
+        return (out or {}).get("downloadUrl", "")
+
     async def _download_inbound_files(
         self, msg: IncomingMessage, reply: Reply
     ) -> list[Any]:
@@ -107,7 +169,7 @@ class DingTalkBotChannel(BaseBotChannel):
                 continue
 
             try:
-                download_url = await reply.download_url(code, msg_id)
+                download_url = await self._resolve_download_url(reply, code, msg_id)
                 if not download_url:
                     logger.warning("换取附件下载链接失败 | downloadCode: %s", code)
                     continue
@@ -144,7 +206,7 @@ class DingTalkBotChannel(BaseBotChannel):
             return
 
         # 2. 提取文本与下载内存附件
-        prompt = (getattr(msg, "text", None) or "").strip()
+        prompt = _extract_message_text(msg)
         media_items = await self._download_inbound_files(msg, reply)
 
         if not prompt and not media_items:
